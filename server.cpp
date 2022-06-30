@@ -8,6 +8,8 @@
 
 int __cdecl main(void) 
 {
+    system("CLS");
+
     WSADATA wsaData;
     int iResult;
 
@@ -27,6 +29,8 @@ int __cdecl main(void)
         printf("WSAStartup failed with error: %d\n", iResult);
         return 1;
     }
+
+    std::cout << "Winsock initialized.\n";
 
     ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_INET;
@@ -51,8 +55,10 @@ int __cdecl main(void)
         return 1;
     }
 
+    std::cout << "Socket created.\n";
+
     // Setup the TCP listening socket
-    iResult = bind( ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
     if (iResult == SOCKET_ERROR) {
         printf("bind failed with error: %d\n", WSAGetLastError());
         freeaddrinfo(result);
@@ -60,6 +66,8 @@ int __cdecl main(void)
         WSACleanup();
         return 1;
     }
+
+    std::cout << "Waiting for connections...\n";
 
     freeaddrinfo(result);
 
@@ -80,47 +88,33 @@ int __cdecl main(void)
         return 1;
     }
 
-    do {
-        std::string message;
-        char Buffer[512];
-        iResult = recv(ClientSocket, Buffer, 512, 0);
-        Buffer[iResult] = '\0';
-        message = Buffer;
-        std::cout << Buffer;
-    } while (iResult>0);
+    std::cout << "Connected to client.\n";
 
-    // No longer need server socket
+    // No longer need listen socket
     closesocket(ListenSocket);
 
-    // Receive until the peer shuts down the connection
-    // do {
+    std::fstream input;
+    input.open("menu.txt", std::ios::in);
 
-    //     iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-    //     if (iResult > 0) {
-    //         printf("Bytes received: %d\n", iResult);
+    // Send menu data to client
+    while (!input.eof()) {
+        std::string curFood;
+        std::getline(input, curFood);
+        iSendResult = send(ClientSocket, curFood.c_str(), sizeof(curFood), 0);
+        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
+    }
 
-    //     // Echo the buffer back to the sender
-    //         iSendResult = send( ClientSocket, recvbuf, iResult, 0 );
-    //         if (iSendResult == SOCKET_ERROR) {
-    //             printf("send failed with error: %d\n", WSAGetLastError());
-    //             closesocket(ClientSocket);
-    //             WSACleanup();
-    //             return 1;
-    //         }
-    //         printf("Bytes sent: %d\n", iSendResult);
-    //     }
-    //     else if (iResult == 0)
-    //         printf("Connection closing...\n");
-    //     else  {
-    //         printf("recv failed with error: %d\n", WSAGetLastError());
-    //         closesocket(ClientSocket);
-    //         WSACleanup();
-    //         return 1;
-    //     }
+    // Receive client's order
+    do {
+        char order[DEF_BUF_LEN];
+        iResult = recv(ClientSocket, order, recvbuflen, 0);
+        order[iResult] = '\0';
+        std::cout << order;
+        // std::istringstream iss(order);
+        // std::string item;
+    } while (iResult > 0);
 
-    // } while (iResult > 0);
-
-    // Shutdown the connection since we're done
+    // Shutdown the connection
     iResult = shutdown(ClientSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());

@@ -7,6 +7,8 @@
 
 int __cdecl main(int argc, char **argv) 
 {
+    system("CLS");
+
     WSADATA wsaData;
     SOCKET ConnectSocket = INVALID_SOCKET;
 
@@ -15,6 +17,7 @@ int __cdecl main(int argc, char **argv)
     char recvbuf[DEF_BUF_LEN];
 
     int iResult;
+    int iSendResult;
     int recvbuflen = DEF_BUF_LEN;
 
     // Validate the parameters
@@ -73,31 +76,37 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    // Send an initial buffer
-    // iResult = send( ConnectSocket, sendbuf, (int)strlen(sendbuf), 0 );
-    // if (iResult == SOCKET_ERROR) {
-    //     printf("send failed with error: %d\n", WSAGetLastError());
-    //     closesocket(ConnectSocket);
-    //     WSACleanup();
-    //     return 1;
-    // }
+    std::cout << "--------------------\n" <<
+    "Royal Restaurant's Menu\n\n";
+    char curFood[DEF_BUF_LEN];
 
-    // printf("Bytes Sent: %ld\n", iResult);
+    // Print out the menu
+    while (true) {
+        iResult = recv(ConnectSocket, curFood, recvbuflen, 0);
+        curFood[iResult] = '\0';
 
-    std::string message;
-    std::getline(std::cin, message);
-    unsigned int Length = strlen(message.c_str());
-    if(Length>512)
-        Length = 512;
-    iResult = send(ConnectSocket, message.c_str(),Length,0);
-    if (iResult == SOCKET_ERROR) {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(ConnectSocket);
-        WSACleanup();
-        return 1;
+        if (curFood == "End\0") break;
+
+        std::istringstream iss(curFood);
+        std::string item;
+
+        std::cout << std::left;
+        while (getline(iss, item, ','))
+        {
+            std::cout << std::setw(20) << item;
+        }
+        std::cout << std::endl;
+
+        iSendResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
     }
 
-    // shutdown the connection since no more data will be sent
+    // Ask what to order
+    std::cout << "\nWhat would you like to order? ";
+    std::string order;
+    std::getline(std::cin, order);
+    iSendResult = send(ConnectSocket, order.c_str(), sizeof(order), 0);
+
+    // Shutdown the connection
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
@@ -106,20 +115,7 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    // Receive until the peer closes the connection
-    // do {
-
-    //     iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-    //     if ( iResult > 0 )
-    //         printf("Bytes received: %d\n", iResult);
-    //     else if ( iResult == 0 )
-    //         printf("Connection closed\n");
-    //     else
-    //         printf("recv failed with error: %d\n", WSAGetLastError());
-
-    // } while( iResult > 0 );
-
-    // cleanup
+    // Cleanup
     closesocket(ConnectSocket);
     WSACleanup();
 

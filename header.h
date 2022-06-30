@@ -10,8 +10,11 @@
 #include <stdio.h>
 #include <string>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <sstream>
 
-#define DEF_BUF_LEN 512
-#define DEF_PORT "5432"
+#define DEF_BUF_LEN 4096
+#define DEF_PORT "30000"
 
 #endif
