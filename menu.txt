@@ -9,4 +9,4 @@ ID,Food,Price,Note
 8,Coffee,10000,Sweet Aroma
 9,Orange Juice,10000,Healthy
 10,Bottled Water,5000,Clean
-End
+E

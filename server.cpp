@@ -20,6 +20,7 @@ int __cdecl main(void)
     struct addrinfo hints;
 
     int iSendResult;
+    const char *sendbuf = "ANY";
     char recvbuf[DEF_BUF_LEN];
     int recvbuflen = DEF_BUF_LEN;
 
@@ -90,9 +91,6 @@ int __cdecl main(void)
 
     std::cout << "Connected to client.\n";
 
-    // No longer need listen socket
-    closesocket(ListenSocket);
-
     std::fstream input;
     input.open("menu.txt", std::ios::in);
 
@@ -103,16 +101,22 @@ int __cdecl main(void)
         iSendResult = send(ClientSocket, curFood.c_str(), sizeof(curFood), 0);
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
     }
+    iSendResult = send(ClientSocket, sendbuf, (int)strlen(sendbuf), 0);
 
     // Receive client's order
     do {
-        char order[DEF_BUF_LEN];
-        iResult = recv(ClientSocket, order, recvbuflen, 0);
-        order[iResult] = '\0';
+        std::string order;
+        char buffer[DEF_BUF_LEN];
+        iResult = recv(ClientSocket, buffer, recvbuflen, 0);
+        buffer[iResult] = '\0';
+        order = buffer;
         std::cout << order;
         // std::istringstream iss(order);
         // std::string item;
     } while (iResult > 0);
+
+    // No longer need listen socket
+    closesocket(ListenSocket);
 
     // Shutdown the connection
     iResult = shutdown(ClientSocket, SD_SEND);

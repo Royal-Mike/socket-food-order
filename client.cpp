@@ -13,7 +13,7 @@ int __cdecl main(int argc, char **argv)
     SOCKET ConnectSocket = INVALID_SOCKET;
 
     struct addrinfo *result = NULL, *ptr = NULL, hints;
-    const char *sendbuf = "this is a test";
+    const char *sendbuf = "ANY";
     char recvbuf[DEF_BUF_LEN];
 
     int iResult;
@@ -76,7 +76,7 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    std::cout << "--------------------\n" <<
+    std::cout << "------------------------------\n" <<
     "Royal Restaurant's Menu\n\n";
     char curFood[DEF_BUF_LEN];
 
@@ -85,7 +85,7 @@ int __cdecl main(int argc, char **argv)
         iResult = recv(ConnectSocket, curFood, recvbuflen, 0);
         curFood[iResult] = '\0';
 
-        if (curFood == "End\0") break;
+        if (curFood[0] == 'E') break;
 
         std::istringstream iss(curFood);
         std::string item;
@@ -93,18 +93,22 @@ int __cdecl main(int argc, char **argv)
         std::cout << std::left;
         while (getline(iss, item, ','))
         {
-            std::cout << std::setw(20) << item;
+            std::cout << std::setw(15) << item;
         }
         std::cout << std::endl;
 
         iSendResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
     }
+    iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 
     // Ask what to order
-    std::cout << "\nWhat would you like to order? ";
+    std::cout << "\n\n------------------------------\n" <<
+    "What would you like to order? ";
     std::string order;
     std::getline(std::cin, order);
-    iSendResult = send(ConnectSocket, order.c_str(), sizeof(order), 0);
+    unsigned int length = strlen(order.c_str());
+    if (length > DEF_BUF_LEN) length = DEF_BUF_LEN;
+    iSendResult = send(ConnectSocket, order.c_str(), length, 0);
 
     // Shutdown the connection
     iResult = shutdown(ConnectSocket, SD_SEND);
