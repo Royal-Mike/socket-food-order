@@ -99,7 +99,6 @@ int __cdecl main(int argc, char **argv)
 
         iSendResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
     }
-    iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
 
     // Ask what to order
     std::cout << "\n\n------------------------------\n" <<

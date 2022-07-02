@@ -95,13 +95,13 @@ int __cdecl main(void)
     input.open("menu.txt", std::ios::in);
 
     // Send menu data to client
-    while (!input.eof()) {
+    while (true) {
         std::string curFood;
         std::getline(input, curFood);
         iSendResult = send(ClientSocket, curFood.c_str(), sizeof(curFood), 0);
+        if (input.eof()) break;
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
     }
-    iSendResult = send(ClientSocket, sendbuf, (int)strlen(sendbuf), 0);
 
     // Receive client's order
     do {
