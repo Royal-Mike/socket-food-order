@@ -94,26 +94,88 @@ int __cdecl main(void)
     std::fstream input;
     input.open("menu.txt", std::ios::in);
 
+    FOOD* menu = new FOOD;
+    FOOD* food = menu;
+    int count = -1;
+
     // Send menu data to client
     while (true) {
         std::string curFood;
         std::getline(input, curFood);
         iSendResult = send(ClientSocket, curFood.c_str(), sizeof(curFood), 0);
-        if (input.eof()) break;
+
+        if (input.eof()) {
+            food -> next = nullptr;
+            break;
+        }
+
+        count++;
+        if (count == 0) continue;
+
+        std::istringstream iss(curFood);
+        std::string item;
+        std::vector<std::string> seglist;
+
+        while (std::getline(iss, item, ',')) {
+            seglist.push_back(item);
+        }
+
+        food -> id = std::atoi(seglist[0].c_str());
+        food -> name = seglist[1];
+        food -> price = std::atof(seglist[2].c_str());
+        food -> next = new FOOD;
+        food = food -> next;
+
         iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
     }
 
-    // Receive client's order
-    do {
+    // Receive and validate client's order
+    while (true) {
         std::string order;
         char buffer[DEF_BUF_LEN];
         iResult = recv(ClientSocket, buffer, recvbuflen, 0);
         buffer[iResult] = '\0';
         order = buffer;
         std::cout << order;
-        // std::istringstream iss(order);
-        // std::string item;
-    } while (iResult > 0);
+
+        std::istringstream iss(order);
+        std::string item;
+        std::vector<std::string> seglist;
+
+        while (std::getline(iss, item, ',')) {
+            seglist.push_back(item);
+        }
+
+        bool check = false;
+        food = menu;
+        while (food != nullptr) {
+            if (food -> name == seglist[0]) {
+                check = true;
+                break;
+            }
+            food = food -> next;
+        }
+
+        if (seglist.size() != 2) check = false;
+
+        if (check) {
+            for (int i = 0; i < seglist[1].size(); i++) {
+                if (isdigit(seglist[1][i])) check = true;
+                else check = false;
+            }
+        }
+
+        if (!check) {
+            std::string message = "Invalid order. Please try again.\n";
+            iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+        }
+
+        else {
+            std::string message = "The price is.\n";
+            iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+            break;
+        }
+    }
 
     // No longer need listen socket
     closesocket(ListenSocket);

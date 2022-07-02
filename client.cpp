@@ -5,6 +5,16 @@
 // #pragma comment (lib, "Mswsock.lib")
 // #pragma comment (lib, "AdvApi32.lib")
 
+void askOrder(int& iSendResult, SOCKET ConnectSocket) {
+    std::cout << "\n------------------------------\n" <<
+    "What would you like to order? ";
+    std::string order;
+    std::getline(std::cin, order);
+    unsigned int length = strlen(order.c_str());
+    if (length > DEF_BUF_LEN) length = DEF_BUF_LEN;
+    iSendResult = send(ConnectSocket, order.c_str(), length, 0);
+}
+
 int __cdecl main(int argc, char **argv) 
 {
     system("CLS");
@@ -78,10 +88,10 @@ int __cdecl main(int argc, char **argv)
 
     std::cout << "------------------------------\n" <<
     "Royal Restaurant's Menu\n\n";
-    char curFood[DEF_BUF_LEN];
 
     // Print out the menu
     while (true) {
+        char curFood[DEF_BUF_LEN];
         iResult = recv(ConnectSocket, curFood, recvbuflen, 0);
         curFood[iResult] = '\0';
 
@@ -101,13 +111,26 @@ int __cdecl main(int argc, char **argv)
     }
 
     // Ask what to order
-    std::cout << "\n\n------------------------------\n" <<
-    "What would you like to order? ";
-    std::string order;
-    std::getline(std::cin, order);
-    unsigned int length = strlen(order.c_str());
-    if (length > DEF_BUF_LEN) length = DEF_BUF_LEN;
-    iSendResult = send(ConnectSocket, order.c_str(), length, 0);
+    askOrder(iSendResult, ConnectSocket);
+
+    // Receive server's response
+    do {
+        std::string message;
+        char buffer[DEF_BUF_LEN];
+        iResult = recv(ConnectSocket, buffer, recvbuflen, 0);
+        buffer[iResult] = '\0';
+        message = buffer;
+
+        std::cout << message;
+
+        if (buffer[0] == 'I') {
+            askOrder(iSendResult, ConnectSocket);
+        }
+
+        else {
+            break;
+        }
+    } while (iResult > 0);
 
     // Shutdown the connection
     iResult = shutdown(ConnectSocket, SD_SEND);

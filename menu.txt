@@ -2,8 +2,8 @@ ID,Food,Price,Note
 1,Crab Soup,15000,Delicious
 2,Croissant,20000,Crunchy
 3,Fried Rice,25000,Must Try
-4,Beef Pho,30000,Traditional Dish
-5,Spaghetti,30000,Italian Cuisine
+4,Beef Pho,30000,Traditional
+5,Spaghetti,30000,Italian
 6,Jelly,10000,Sweet
 7,Fruits,20000,Fresh
 8,Coffee,10000,Sweet Aroma
