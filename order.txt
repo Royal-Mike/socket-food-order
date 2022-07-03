@@ -1,0 +1,3 @@
+ID,Food,Quantity,Price,Status
+1,Beef Pho|Croissant,3|2,130000,Paid
+2,Orange Juice,7,70000,Paid

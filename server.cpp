@@ -6,8 +6,63 @@
 // #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
 
-int __cdecl main(void) 
-{
+void saveOrder(int& iSendResult, SOCKET& ClientSocket, ORDER*& orders, std::string allFood, std::string allQuantity, float priceTotal) {
+    int id = 1;
+    ORDER* curOrder = orders;
+
+    if (orders == nullptr) {
+        orders = new ORDER;
+        curOrder = orders;
+    }
+
+    else {
+        while (curOrder -> next != nullptr) {
+            id++;
+            curOrder = curOrder -> next;
+        }
+        id++;
+        curOrder -> next = new ORDER;
+        curOrder = curOrder -> next;
+    }
+
+    curOrder -> id = id;
+    curOrder -> food = allFood;
+    curOrder -> quantity = allQuantity;
+    curOrder -> price = priceTotal;
+    curOrder -> status = "Unpaid";
+    curOrder -> next = nullptr;
+}
+
+void acceptPayment(int& iSendResult, SOCKET& ClientSocket, ORDER*& orders) {
+    std::string message = "P";
+    iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+
+    ORDER* curOrder = orders;
+    while (curOrder -> next != nullptr) {
+        curOrder = curOrder -> next;
+    }
+    curOrder -> status = "Paid";
+
+    std::fstream outputOrder;
+    outputOrder.open("order.txt", std::ios::out);
+    outputOrder << "ID,Food,Quantity,Price,Status\n";
+
+    curOrder = orders;
+    while (true) {
+        outputOrder << curOrder -> id << ","
+        << curOrder -> food << ","
+        << curOrder -> quantity << ","
+        << curOrder -> price << ","
+        << curOrder -> status;
+        if (curOrder -> next != nullptr) {
+            outputOrder << std::endl;
+            curOrder = curOrder -> next;
+        }
+        else break;
+    }
+}
+
+int __cdecl main(void) {
     system("CLS");
 
     WSADATA wsaData;
@@ -20,7 +75,7 @@ int __cdecl main(void)
     struct addrinfo hints;
 
     int iSendResult;
-    const char *sendbuf = "ANY";
+    const char *sendbuf = ";;;";
     char recvbuf[DEF_BUF_LEN];
     int recvbuflen = DEF_BUF_LEN;
 
@@ -91,9 +146,49 @@ int __cdecl main(void)
 
     std::cout << "Connected to client.\n";
 
-    std::fstream input;
-    input.open("menu.txt", std::ios::in);
+    // Read order file
+    std::fstream inputOrder;
+    inputOrder.open("order.txt", std::ios::in);
+    ORDER* orders = nullptr;
+    ORDER* oneOrder = orders;
+    int countMenu = -1;
 
+    // Put order data into linked list
+    while (!inputOrder.eof()) {
+        std::string dataOrder;
+        std::getline(inputOrder, dataOrder);
+
+        countMenu++;
+        if (countMenu == 0) continue;
+
+        std::istringstream iss(dataOrder);
+        std::string item;
+        std::vector<std::string> seglist;
+
+        while (std::getline(iss, item, ',')) {
+            seglist.push_back(item);
+        }
+
+        if (oneOrder == nullptr) {
+            orders = new ORDER;
+            oneOrder = orders;
+        }
+        else {
+            oneOrder -> next = new ORDER;
+            oneOrder = oneOrder -> next;
+        }
+
+        oneOrder -> id = std::atoi(seglist[0].c_str());
+        oneOrder -> food = seglist[1];
+        oneOrder -> quantity = seglist[2];
+        oneOrder -> price = std::atof(seglist[3].c_str());
+        oneOrder -> status = seglist[4];
+        oneOrder -> next = nullptr;
+    }
+
+    // Read menu file
+    std::fstream inputMenu;
+    inputMenu.open("menu.txt", std::ios::in);
     FOOD* menu = new FOOD;
     FOOD* food = menu;
     int count = -1;
@@ -101,10 +196,11 @@ int __cdecl main(void)
     // Send menu data to client
     while (true) {
         std::string curFood;
-        std::getline(input, curFood);
+        std::getline(inputMenu, curFood);
         iSendResult = send(ClientSocket, curFood.c_str(), sizeof(curFood), 0);
+        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
 
-        if (input.eof()) {
+        if (inputMenu.eof()) {
             food -> next = nullptr;
             break;
         }
@@ -125,9 +221,10 @@ int __cdecl main(void)
         food -> price = std::atof(seglist[2].c_str());
         food -> next = new FOOD;
         food = food -> next;
-
-        iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
     }
+
+    ORDER* curOrder = nullptr;
+    ORDER* curOrderFood = curOrder;
 
     // Receive and validate client's order
     while (true) {
@@ -136,7 +233,31 @@ int __cdecl main(void)
         iResult = recv(ClientSocket, buffer, recvbuflen, 0);
         buffer[iResult] = '\0';
         order = buffer;
-        std::cout << order;
+
+        if (order == "p") {
+            curOrderFood = curOrder;
+            std::string delim = "|";
+            std::string allFood = "";
+            std::string allQuantity = "";
+            float priceTotal = 0;
+
+            while (true) {
+                allFood += curOrderFood -> food;
+                allQuantity += curOrderFood -> quantity;
+                priceTotal += curOrderFood -> price * std::atoi(curOrderFood -> quantity.c_str());
+                curOrderFood = curOrderFood -> next;
+                if (curOrderFood != nullptr) {
+                    allFood += delim;
+                    allQuantity += delim;
+                }
+                else break;
+            }
+
+            saveOrder(iSendResult, ClientSocket, orders, allFood, allQuantity, priceTotal);
+            std::string message = std::to_string(priceTotal);
+            iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+            break;
+        }
 
         std::istringstream iss(order);
         std::string item;
@@ -163,17 +284,69 @@ int __cdecl main(void)
                 if (isdigit(seglist[1][i])) check = true;
                 else check = false;
             }
+
+            if (seglist[1][0] == '0' || seglist[1][0] == '-') check = false;
         }
 
         if (!check) {
-            std::string message = "Invalid order. Please try again.\n";
+            std::string message = "I";
             iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
         }
 
         else {
-            std::string message = "The price is.\n";
+            if (curOrderFood == nullptr) {
+                curOrder = new ORDER;
+                curOrderFood = curOrder;                
+            }
+            else {
+                curOrderFood -> next = new ORDER;
+                curOrderFood = curOrderFood -> next;
+            }
+
+            curOrderFood -> food = seglist[0];
+            curOrderFood -> price = food -> price;
+            curOrderFood -> quantity = seglist[1];
+            curOrderFood -> next = nullptr;
+
+            std::string message = "O";
             iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+        }
+    }
+
+    // Receive and validate client's payment
+    while (true) {
+        std::string payment;
+        char buffer[DEF_BUF_LEN];
+        iResult = recv(ClientSocket, buffer, recvbuflen, 0);
+        buffer[iResult] = '\0';
+        payment = buffer;
+
+        if (payment == "c") {
+            acceptPayment(iSendResult, ClientSocket, orders);
             break;
+        }
+
+        else {
+            bool check = true;
+            if (payment.size() != 10) check = false;
+
+            if (check)
+            for (int i = 0; i < payment.size(); i++) {
+                if (!isdigit(payment[i])) {
+                    check = false;
+                    break;
+                }
+            }
+
+            if (check) {
+                acceptPayment(iSendResult, ClientSocket, orders);
+                break;
+            }
+
+            else {
+                std::string message = "I";
+                iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
+            }
         }
     }
 
@@ -192,6 +365,14 @@ int __cdecl main(void)
     // Cleanup
     closesocket(ClientSocket);
     WSACleanup();
+
+    food = menu;
+    while (food != nullptr) {
+        FOOD* temp = food;
+        food = food -> next;
+        delete temp;
+    }
+    delete menu;
 
     return 0;
 }

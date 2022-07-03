@@ -6,7 +6,7 @@
 // #pragma comment (lib, "AdvApi32.lib")
 
 void askOrder(int& iSendResult, SOCKET ConnectSocket) {
-    std::cout << "\n------------------------------\n" <<
+    std::cout << "\n" << HORI_LINE << "\n" <<
     "What would you like to order? ";
     std::string order;
     std::getline(std::cin, order);
@@ -15,15 +15,24 @@ void askOrder(int& iSendResult, SOCKET ConnectSocket) {
     iSendResult = send(ConnectSocket, order.c_str(), length, 0);
 }
 
-int __cdecl main(int argc, char **argv) 
-{
+void askPayment(int& iSendResult, SOCKET ConnectSocket) {
+    std::cout << "\n" << HORI_LINE << "\n" <<
+    "Enter c to pay by cash, or a 10-digit bank account number to pay with your account: ";
+    std::string payment;
+    std::getline(std::cin, payment);
+    unsigned int length = strlen(payment.c_str());
+    if (length > DEF_BUF_LEN) length = DEF_BUF_LEN;
+    iSendResult = send(ConnectSocket, payment.c_str(), length, 0);
+}
+
+int __cdecl main(int argc, char **argv) {
     system("CLS");
 
     WSADATA wsaData;
     SOCKET ConnectSocket = INVALID_SOCKET;
 
     struct addrinfo *result = NULL, *ptr = NULL, hints;
-    const char *sendbuf = "ANY";
+    const char *sendbuf = ";;;";
     char recvbuf[DEF_BUF_LEN];
 
     int iResult;
@@ -86,13 +95,14 @@ int __cdecl main(int argc, char **argv)
         return 1;
     }
 
-    std::cout << "------------------------------\n" <<
+    std::cout << HORI_LINE << "\n" <<
     "Royal Restaurant's Menu\n\n";
 
     // Print out the menu
     while (true) {
         char curFood[DEF_BUF_LEN];
         iResult = recv(ConnectSocket, curFood, recvbuflen, 0);
+        iSendResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
         curFood[iResult] = '\0';
 
         if (curFood[0] == 'E') break;
@@ -106,31 +116,62 @@ int __cdecl main(int argc, char **argv)
             std::cout << std::setw(15) << item;
         }
         std::cout << std::endl;
-
-        iSendResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
     }
 
     // Ask what to order
     askOrder(iSendResult, ConnectSocket);
 
-    // Receive server's response
-    do {
+    // Receive server's response on order
+    while (true) {
         std::string message;
         char buffer[DEF_BUF_LEN];
         iResult = recv(ConnectSocket, buffer, recvbuflen, 0);
         buffer[iResult] = '\0';
         message = buffer;
 
-        std::cout << message;
-
         if (buffer[0] == 'I') {
+            std::cout << "Invalid order. Please try again.\n";
             askOrder(iSendResult, ConnectSocket);
         }
 
+        else if (buffer[0] == 'O') {
+            std::string choice;
+            std::cout << "Food ordered. Enter p to go to payment, or anything else to order more food: ";
+            std::getline(std::cin, choice);
+
+            if (choice == "p") {
+                unsigned int length = strlen(choice.c_str());
+                if (length > DEF_BUF_LEN) length = DEF_BUF_LEN;
+                iSendResult = send(ConnectSocket, choice.c_str(), length, 0);
+            }
+            else askOrder(iSendResult, ConnectSocket);
+        }
+
         else {
+            std::cout << "\n" << HORI_LINE << "\n" << "Total price is " << message << ".\n";
+            askPayment(iSendResult, ConnectSocket);
             break;
         }
-    } while (iResult > 0);
+    }
+
+    // Receive server's response on payment
+    while (true) {
+        std::string message;
+        char buffer[DEF_BUF_LEN];
+        iResult = recv(ConnectSocket, buffer, recvbuflen, 0);
+        buffer[iResult] = '\0';
+        message = buffer;
+
+        if (buffer[0] == 'I') {
+            std::cout << "Invalid input. Please try again.\n";
+            askPayment(iSendResult, ConnectSocket);
+        }
+
+        else {
+            std::cout << "\n" << HORI_LINE << "\n" << "Payment processed. Thank you for ordering!";
+            break;
+        }
+    }
 
     // Shutdown the connection
     iResult = shutdown(ConnectSocket, SD_SEND);

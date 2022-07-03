@@ -1,4 +1,4 @@
-ID,Food,Price,Note
+ID,Food,Price,Notes
 1,Crab Soup,15000,Delicious
 2,Croissant,20000,Crunchy
 3,Fried Rice,25000,Must Try

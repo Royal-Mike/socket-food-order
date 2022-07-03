@@ -16,6 +16,7 @@
 #include <sstream>
 #include <vector>
 
+#define HORI_LINE "------------------------------"
 #define DEF_BUF_LEN 4096
 #define DEF_PORT "30000"
 
@@ -24,6 +25,15 @@ struct FOOD {
     std::string name;
     float price;
     FOOD* next;
+};
+
+struct ORDER {
+    int id;
+    std::string food;
+    float price;
+    std::string quantity;
+    std::string status;
+    ORDER* next;
 };
 
 #endif
