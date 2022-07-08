@@ -6,6 +6,7 @@
 // #pragma comment (lib, "Ws2_32.lib")
 // #pragma comment (lib, "Mswsock.lib")
 
+// Save current order to database
 void saveOrder(int& iSendResult, SOCKET& ClientSocket, ORDER*& orders, std::string allFood, std::string allQuantity, float priceTotal) {
     int id = 1;
     ORDER* curOrder = orders;
@@ -31,8 +32,27 @@ void saveOrder(int& iSendResult, SOCKET& ClientSocket, ORDER*& orders, std::stri
     curOrder -> price = priceTotal;
     curOrder -> status = "Unpaid";
     curOrder -> next = nullptr;
+
+    std::fstream outputOrder;
+    outputOrder.open("order.txt", std::ios::out);
+    outputOrder << "ID,Food,Quantity,Price,Status\n";
+
+    curOrder = orders;
+    while (true) {
+        outputOrder << curOrder -> id << ","
+        << curOrder -> food << ","
+        << curOrder -> quantity << ","
+        << curOrder -> price << ","
+        << curOrder -> status;
+        if (curOrder -> next != nullptr) {
+            outputOrder << std::endl;
+            curOrder = curOrder -> next;
+        }
+        else break;
+    }
 }
 
+// Accept client's payment and update order in database
 void acceptPayment(int& iSendResult, SOCKET& ClientSocket, ORDER*& orders) {
     std::string message = "P";
     iSendResult = send(ClientSocket, message.c_str(), sizeof(message), 0);
@@ -75,14 +95,14 @@ int __cdecl main(void) {
     struct addrinfo hints;
 
     int iSendResult;
-    const char *sendbuf = ";;;";
+    const char *sendbuf = "[TEST]";
     char recvbuf[DEF_BUF_LEN];
     int recvbuflen = DEF_BUF_LEN;
 
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != 0) {
-        printf("WSAStartup failed with error: %d\n", iResult);
+        printf("Winsock Error: %d\n", iResult);
         return 1;
     }
 
@@ -94,18 +114,18 @@ int __cdecl main(void) {
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE;
 
-    // Resolve the server address and port
+    // Resolve server address and port
     iResult = getaddrinfo(NULL, DEF_PORT, &hints, &result);
-    if ( iResult != 0 ) {
-        printf("getaddrinfo failed with error: %d\n", iResult);
+    if (iResult != 0) {
+        printf("Getaddrinfo Error: %d\n", iResult);
         WSACleanup();
         return 1;
     }
 
-    // Create a SOCKET for connecting to server
-    ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+    // Create listen socket
+    ListenSocket = socket(result -> ai_family, result -> ai_socktype, result -> ai_protocol);
     if (ListenSocket == INVALID_SOCKET) {
-        printf("socket failed with error: %ld\n", WSAGetLastError());
+        printf("Socket Error: %ld\n", WSAGetLastError());
         freeaddrinfo(result);
         WSACleanup();
         return 1;
@@ -113,10 +133,10 @@ int __cdecl main(void) {
 
     std::cout << "Socket created.\n";
 
-    // Setup the TCP listening socket
-    iResult = bind(ListenSocket, result->ai_addr, (int)result->ai_addrlen);
+    // Setup TCP for listen socket
+    iResult = bind(ListenSocket, result -> ai_addr, (int)result -> ai_addrlen);
     if (iResult == SOCKET_ERROR) {
-        printf("bind failed with error: %d\n", WSAGetLastError());
+        printf("Bind Error: %d\n", WSAGetLastError());
         freeaddrinfo(result);
         closesocket(ListenSocket);
         WSACleanup();
@@ -129,7 +149,7 @@ int __cdecl main(void) {
 
     iResult = listen(ListenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR) {
-        printf("listen failed with error: %d\n", WSAGetLastError());
+        printf("Listen Error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -138,7 +158,7 @@ int __cdecl main(void) {
     // Accept a client socket
     ClientSocket = accept(ListenSocket, NULL, NULL);
     if (ClientSocket == INVALID_SOCKET) {
-        printf("accept failed with error: %d\n", WSAGetLastError());
+        printf("Accept Error: %d\n", WSAGetLastError());
         closesocket(ListenSocket);
         WSACleanup();
         return 1;
@@ -350,22 +370,23 @@ int __cdecl main(void) {
         }
     }
 
-    // No longer need listen socket
+    // Close listen socket
     closesocket(ListenSocket);
 
-    // Shutdown the connection
+    // Shutdown connection
     iResult = shutdown(ClientSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
-        printf("shutdown failed with error: %d\n", WSAGetLastError());
+        printf("Shutdown Error: %d\n", WSAGetLastError());
         closesocket(ClientSocket);
         WSACleanup();
         return 1;
     }
 
-    // Cleanup
+    // Clean up
     closesocket(ClientSocket);
     WSACleanup();
 
+    // Delete menu linked list
     food = menu;
     while (food != nullptr) {
         FOOD* temp = food;
@@ -373,6 +394,15 @@ int __cdecl main(void) {
         delete temp;
     }
     delete menu;
+
+    // Delete order linked list
+    curOrderFood = curOrder;
+    while (curOrderFood != nullptr) {
+        ORDER* temp = curOrderFood;
+        curOrderFood = curOrderFood -> next;
+        delete temp;
+    }
+    delete curOrder;
 
     return 0;
 }

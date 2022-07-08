@@ -5,6 +5,7 @@
 // #pragma comment (lib, "Mswsock.lib")
 // #pragma comment (lib, "AdvApi32.lib")
 
+// Ask client for order
 void askOrder(int& iSendResult, SOCKET ConnectSocket) {
     std::cout << "\n" << HORI_LINE << "\n" <<
     "What would you like to order? ";
@@ -15,6 +16,7 @@ void askOrder(int& iSendResult, SOCKET ConnectSocket) {
     iSendResult = send(ConnectSocket, order.c_str(), length, 0);
 }
 
+// Ask client for payment
 void askPayment(int& iSendResult, SOCKET ConnectSocket) {
     std::cout << "\n" << HORI_LINE << "\n" <<
     "Enter c to pay by cash, or a 10-digit bank account number to pay with your account: ";
@@ -32,65 +34,64 @@ int __cdecl main(int argc, char **argv) {
     SOCKET ConnectSocket = INVALID_SOCKET;
 
     struct addrinfo *result = NULL, *ptr = NULL, hints;
-    const char *sendbuf = ";;;";
+    const char *sendbuf = "[TEST]";
     char recvbuf[DEF_BUF_LEN];
 
     int iResult;
     int iSendResult;
     int recvbuflen = DEF_BUF_LEN;
 
-    // Validate the parameters
+    // Arguments validation
     if (argc != 2) {
-        printf("usage: %s server-name\n", argv[0]);
+        printf("Usage: %s server-name\n", argv[0]);
         return 1;
     }
 
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2,2), &wsaData);
     if (iResult != 0) {
-        printf("WSAStartup failed with error: %d\n", iResult);
+        printf("Winsock Error: %d\n", iResult);
         return 1;
     }
 
-    ZeroMemory( &hints, sizeof(hints) );
+    ZeroMemory(&hints, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
 
-    // Resolve the server address and port
+    // Resolve server address and port
     iResult = getaddrinfo(argv[1], DEF_PORT, &hints, &result);
-    if ( iResult != 0 ) {
-        printf("getaddrinfo failed with error: %d\n", iResult);
+    if (iResult != 0) {
+        printf("Getaddrinfo Error: %d\n", iResult);
         WSACleanup();
         return 1;
     }
 
-    // Attempt to connect to an address until one succeeds
-    for(ptr=result; ptr != NULL ;ptr=ptr->ai_next) {
-
-        // Create a SOCKET for connecting to server
-        ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, 
-            ptr->ai_protocol);
+    // Loop until succeed in connecting to an address
+    for (ptr = result; ptr != NULL; ptr = ptr -> ai_next) {
+        // Create connect socket
+        ConnectSocket = socket(ptr -> ai_family, ptr -> ai_socktype, ptr -> ai_protocol);
         if (ConnectSocket == INVALID_SOCKET) {
-            printf("socket failed with error: %ld\n", WSAGetLastError());
+            printf("Socket Error: %ld\n", WSAGetLastError());
             WSACleanup();
             return 1;
         }
 
-        // Connect to server.
-        iResult = connect( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+        // Connect to server
+        iResult = connect(ConnectSocket, ptr -> ai_addr, (int)ptr -> ai_addrlen);
         if (iResult == SOCKET_ERROR) {
             closesocket(ConnectSocket);
             ConnectSocket = INVALID_SOCKET;
             continue;
         }
+
         break;
     }
 
     freeaddrinfo(result);
 
     if (ConnectSocket == INVALID_SOCKET) {
-        printf("Unable to connect to server!\n");
+        printf("Could not connect to server.\n");
         WSACleanup();
         return 1;
     }
@@ -173,7 +174,7 @@ int __cdecl main(int argc, char **argv) {
         }
     }
 
-    // Shutdown the connection
+    // Shutdown connection
     iResult = shutdown(ConnectSocket, SD_SEND);
     if (iResult == SOCKET_ERROR) {
         printf("shutdown failed with error: %d\n", WSAGetLastError());
@@ -182,7 +183,7 @@ int __cdecl main(int argc, char **argv) {
         return 1;
     }
 
-    // Cleanup
+    // Clean up
     closesocket(ConnectSocket);
     WSACleanup();
 
